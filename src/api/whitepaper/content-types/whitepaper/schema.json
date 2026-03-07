@@ -1,0 +1,28 @@
+{
+  "kind": "singleType",
+  "collectionName": "whitepapers",
+  "info": {
+    "singularName": "whitepaper",
+    "pluralName": "whitepapers",
+    "displayName": "whitepaper"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "whitework": {
+      "type": "string"
+    },
+    "photo": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": [
+        "images",
+        "files",
+        "videos",
+        "audios"
+      ]
+    }
+  }
+}

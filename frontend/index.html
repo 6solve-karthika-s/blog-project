@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Strapi Dynamic Website</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: Arial; margin:0; max-width:900px; margin:auto; }
+    nav { background:#333; padding:12px; }
+    nav a { color:white; margin-right:15px; cursor:pointer; font-weight:bold; text-decoration:none; }
+    nav a.active-link { text-decoration:underline; }
+    .page { display:none; padding:20px; }
+    .active { display:block; }
+    .article { border-bottom:1px solid #ccc; margin-bottom:20px; padding-bottom:10px; }
+    .article img { max-width:100%; border-radius:5px; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a id="nav-home" onclick="showPage('home')">Home</a>
+  <a id="nav-who" onclick="showPage('who')">Who We Are</a>
+  <a id="nav-whitepaper" onclick="showPage('whitepaper')">Whitepaper</a>
+  <a id="nav-insight" onclick="showPage('insight')">Insight</a>
+</nav>
+
+<div id="home" class="page active">
+  <h1>Articles</h1>
+  <div id="articles">Loading...</div>
+</div>
+
+<div id="who" class="page">
+  <h1>Who We Are</h1>
+  <div id="who-content">Loading...</div>
+</div>
+
+<div id="whitepaper" class="page">
+  <h1>Whitepaper</h1>
+  <div id="whitepaper-content">Loading...</div>
+</div>
+
+<div id="insight" class="page">
+  <h1>Insight</h1>
+  <div id="insight-content">Loading...</div>
+</div>
+
+<script>
+const BASE_URL = "http://localhost:1337";
+
+/* Page switch */
+function showPage(page) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.getElementById(page).classList.add("active");
+  document.querySelectorAll("nav a").forEach(a => a.classList.remove("active-link"));
+  const nav = document.getElementById("nav-" + page);
+  if(nav) nav.classList.add("active-link");
+}
+
+/* Utility to dynamically render any JSON object */
+function renderFields(container, obj) {
+  container.innerHTML = "";
+  for (const key in obj) {
+    if (!obj.hasOwnProperty(key)) continue;
+    const value = obj[key];
+    if (value === null || value === undefined) continue;
+    const div = document.createElement("div");
+    if (typeof value === "string") {
+      div.innerHTML = `<h3>${key}</h3><p>${value}</p>`;
+    } else if (typeof value === "object") {
+      div.innerHTML = `<h3>${key}</h3><pre>${JSON.stringify(value,null,2)}</pre>`;
+    }
+    container.appendChild(div);
+  }
+}
+
+/* Load Collection Type (Articles) */
+async function loadArticles() {
+  const container = document.getElementById("articles");
+  try {
+    const res = await fetch(BASE_URL + "/api/articles?populate=*");
+    const json = await res.json();
+    const articles = json.data || [];
+    container.innerHTML = "";
+    if (articles.length === 0) { container.innerHTML = "No articles found"; return; }
+
+    articles.forEach(article => {
+      const div = document.createElement("div");
+      div.className = "article";
+      div.innerHTML = `<h2>${article.title || "No title"}</h2>`;
+      // dynamically render all fields
+      renderFields(div, article);
+      container.appendChild(div);
+    });
+
+  } catch(err) {
+    console.error(err);
+    container.innerHTML = "Failed to load articles";
+  }
+}
+
+/* Load Single Type dynamically */
+async function loadSingle(endpoint, containerId) {
+  const container = document.getElementById(containerId);
+  try {
+    const res = await fetch(BASE_URL + endpoint);
+    const json = await res.json();
+    const data = json.data;
+    if (!data) { container.innerHTML = "No content available"; return; }
+    renderFields(container, data);
+  } catch(err) {
+    console.error(err);
+    container.innerHTML = "Failed to load content";
+  }
+}
+
+/* Initial load */
+loadArticles();
+loadSingle("/api/who-we-are", "who-content");
+loadSingle("/api/whitepaper", "whitepaper-content");
+loadSingle("/api/insight", "insight-content");
+
+</script>
+</body>
+</html>
