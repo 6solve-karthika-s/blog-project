@@ -1,28 +1,29 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Strapi Dynamic Website</title>
+  <title>Strapi v5 Dynamic Website</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: Arial; margin:0; max-width:900px; margin:auto; }
-    nav { background:#333; padding:12px; }
-    nav a { color:white; margin-right:15px; cursor:pointer; font-weight:bold; text-decoration:none; }
-    nav a.active-link { text-decoration:underline; }
-    .page { display:none; padding:20px; }
-    .active { display:block; }
-    .article { border-bottom:1px solid #ccc; margin-bottom:20px; padding-bottom:10px; }
-    .article img { max-width:100%; border-radius:5px; }
+    body { font-family: Arial; max-width: 900px; margin: 0 auto; padding: 20px; }
+    nav { background: #333; padding: 12px; }
+    nav a { color: white; margin-right: 15px; font-weight: bold; text-decoration: none; cursor: pointer; }
+    nav a.active-link { text-decoration: underline; }
+    .page { display: none; padding: 20px 0; }
+    .active { display: block; }
+    .item, .article { border-bottom: 1px solid #ccc; padding-bottom: 10px; margin-bottom: 20px; }
+    img { max-width: 100%; border-radius: 5px; margin-top: 10px; }
   </style>
 </head>
 <body>
 
 <nav>
-  <a id="nav-home" onclick="showPage('home')">Home</a>
-  <a id="nav-who" onclick="showPage('who')">Who We Are</a>
-  <a id="nav-whitepaper" onclick="showPage('whitepaper')">Whitepaper</a>
-  <a id="nav-insight" onclick="showPage('insight')">Insight</a>
+  <a id="nav-home">Home</a>
+  <a id="nav-who">Who We Are</a>
+  <a id="nav-whitepaper">Whitepaper</a>
+  <a id="nav-insight">Insight</a>
 </nav>
 
+<!-- Pages -->
 <div id="home" class="page active">
   <h1>Articles</h1>
   <div id="articles">Loading...</div>
@@ -46,77 +47,182 @@
 <script>
 const BASE_URL = "http://localhost:1337";
 
-/* Page switch */
+// --- Navigation ---
 function showPage(page) {
   document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
   document.getElementById(page).classList.add("active");
   document.querySelectorAll("nav a").forEach(a => a.classList.remove("active-link"));
-  const nav = document.getElementById("nav-" + page);
-  if(nav) nav.classList.add("active-link");
+  document.getElementById("nav-" + page).classList.add("active-link");
 }
 
-/* Utility to dynamically render any JSON object */
-function renderFields(container, obj) {
-  container.innerHTML = "";
-  for (const key in obj) {
-    if (!obj.hasOwnProperty(key)) continue;
-    const value = obj[key];
-    if (value === null || value === undefined) continue;
-    const div = document.createElement("div");
-    if (typeof value === "string") {
-      div.innerHTML = `<h3>${key}</h3><p>${value}</p>`;
-    } else if (typeof value === "object") {
-      div.innerHTML = `<h3>${key}</h3><pre>${JSON.stringify(value,null,2)}</pre>`;
-    }
-    container.appendChild(div);
-  }
+document.getElementById("nav-home").addEventListener("click", () => showPage("home"));
+document.getElementById("nav-who").addEventListener("click", () => showPage("who"));
+document.getElementById("nav-whitepaper").addEventListener("click", () => showPage("whitepaper"));
+document.getElementById("nav-insight").addEventListener("click", () => showPage("insight"));
+
+// --- Utility to create image ---
+function createImage(url, alt="") {
+  const img = document.createElement("img");
+  img.src = url;
+  img.alt = alt;
+  return img;
 }
 
-/* Load Collection Type (Articles) */
-async function loadArticles() {
-  const container = document.getElementById("articles");
+// --- Load Collection Type (Articles & Who We Are) ---
+async function loadCollection(endpoint, containerId, mediaField, textField) {
+  const container = document.getElementById(containerId);
+
   try {
-    const res = await fetch(BASE_URL + "/api/articles?populate=*");
+    const res = await fetch(`${BASE_URL}/api/${endpoint}?populate=${mediaField}`);
     const json = await res.json();
-    const articles = json.data || [];
-    container.innerHTML = "";
-    if (articles.length === 0) { container.innerHTML = "No articles found"; return; }
 
-    articles.forEach(article => {
+    let items = [];
+
+    if (Array.isArray(json.data)) {
+      items = json.data;
+    } else if (json.data) {
+      items = [json.data];
+    }
+
+    container.innerHTML = "";
+
+    if (!items.length) {
+      container.innerHTML = "No content found";
+      return;
+    }
+
+    items.forEach(item => {
+      const attrs = item;
+
       const div = document.createElement("div");
-      div.className = "article";
-      div.innerHTML = `<h2>${article.title || "No title"}</h2>`;
-      // dynamically render all fields
-      renderFields(div, article);
-      container.appendChild(div);
+      div.className = "item";
+
+      div.innerHTML = `
+        <h2>${attrs.title || attrs.LABs || "No title"}</h2>
+        <h2>${ attrs.ITService|| ""}</h2>
+
+        <p>${attrs[textField] || ""}</p>
+      `;
+
+      const imgData = attrs[mediaField];
+
+      if (imgData?.url) {
+        div.appendChild(
+          createImage(BASE_URL + imgData.url, attrs.title || "")
+        );
+      }
+       container.appendChild(div);
     });
 
-  } catch(err) {
-    console.error(err);
-    container.innerHTML = "Failed to load articles";
-  }
-}
-
-/* Load Single Type dynamically */
-async function loadSingle(endpoint, containerId) {
-  const container = document.getElementById(containerId);
-  try {
-    const res = await fetch(BASE_URL + endpoint);
-    const json = await res.json();
-    const data = json.data;
-    if (!data) { container.innerHTML = "No content available"; return; }
-    renderFields(container, data);
-  } catch(err) {
+  } catch (err) {
     console.error(err);
     container.innerHTML = "Failed to load content";
   }
 }
+// async function loadSingle(endpoint, containerId, mediaField, textField) {
+//   const container = document.getElementById(containerId);
 
-/* Initial load */
-loadArticles();
-loadSingle("/api/who-we-are", "who-content");
-loadSingle("/api/whitepaper", "whitepaper-content");
-loadSingle("/api/insight", "insight-content");
+//   try {
+//     const res = await fetch(`${BASE_URL}/api/${endpoint}?populate=*`);
+//     const json = await res.json();
+
+//     const item = json.data;
+
+//     container.innerHTML = "";
+
+//     if (!item) {
+//       container.innerHTML = "No content found";
+//       return;
+//     }
+
+//     const attrs = item.attributes || item;
+
+//     const div = document.createElement("div");
+//     div.className = "item";
+
+//     div.innerHTML = `
+//       <h2>${attrs.LABs || attrs.whitework||attrs.Insight || ""}</h2>
+//       <h2>${attrs.ITService || ""}</h2>
+      
+//     `;
+// // <p>${attrs[textField] || ""}</p>
+//     const imgData = attrs[mediaField];
+
+//     if (imgData) {
+//       const imageUrl =
+//         imgData.formats?.small?.url ||
+//         imgData.formats?.thumbnail?.url ||
+//         imgData.url;
+
+//       if (imageUrl) {
+//         div.appendChild(createImage(BASE_URL + imageUrl, attrs.title || ""));
+//       }
+//        {
+//         div.appendChild(createImage(BASE_URL + imageUrl, attrs.title ||attrs.Banner.url|| ""));
+//       }
+      
+      
+//     }
+
+//     container.appendChild(div);
+
+//   } catch (err) {
+//     console.error(err);
+//     container.innerHTML = "Failed to load content";
+//   }
+// }
+async function loadSingle(endpoint, containerId, mediaFields = [], textField) {
+  const container = document.getElementById(containerId);
+
+  try {
+    const res = await fetch(`${BASE_URL}/api/${endpoint}?populate=*`);
+    const json = await res.json();
+
+    const data = json.data;
+
+    container.innerHTML = "";
+
+    if (!data) {
+      container.innerHTML = "No content found";
+      return;
+    }
+
+    const attrs = data.attributes || data;
+
+    const div = document.createElement("div");
+    div.className = "item";
+
+    // Text field
+    div.innerHTML = `<p>${attrs[textField] || ""}</p>`;
+
+    // Loop through multiple media fields
+    mediaFields.forEach(mediaField => {
+      const imgData = attrs[mediaField];
+      if (!imgData) return;
+
+      // Choose the best format
+      const imageUrl =
+        imgData.formats?.small?.url ||
+        imgData.formats?.thumbnail?.url ||
+        imgData.url;
+
+      if (imageUrl) {
+        div.appendChild(createImage(BASE_URL + imageUrl, mediaField));
+      }
+    });
+
+    container.appendChild(div);
+
+  } catch (err) {
+    console.error(err);
+    container.innerHTML = "Failed to load content";
+  }
+}
+// --- Initial Load ---
+loadCollection("articles", "articles", "cover", "description");
+loadSingle("who-we-are", "who-content", "Images","Banner", "description");
+loadSingle("whitepaper", "whitepaper-content", "photo", "whitework");
+loadSingle("insight", "insight-content", "uploads", "Insight");
 
 </script>
 </body>
