@@ -16,225 +16,198 @@
 </head>
 <body>
 
-<nav>
-  <a id="nav-home">Home</a>
-  <a id="nav-who">Who We Are</a>
-  <a id="nav-whitepaper">Whitepaper</a>
-  <a id="nav-insight">Insight</a>
-</nav>
+  <!-- Navigation -->
+  <nav>
+    <a data-page="home" class="active-link">Home</a>
+    <a data-page="who">Who We Are</a>
+    <a data-page="whitepaper">Whitepaper</a>
+    <a data-page="insight">Insight</a>
+    <a data-page="services">Services</a>
+  </nav>
 
-<!-- Pages -->
-<div id="home" class="page active">
-  <h1>Articles</h1>
-  <div id="articles">Loading...</div>
-</div>
+  <!-- Pages -->
+  <div id="home" class="page active">
+    <h1>Articles</h1>
+    <div id="articles">Loading...</div>
+  </div>
 
-<div id="who" class="page">
-  <h1>Who We Are</h1>
-  <div id="who-content">Loading...</div>
-</div>
+  <div id="who" class="page">
+    <h1>Who We Are</h1>
+    <div id="who-content">Loading...</div>
+  </div>
 
-<div id="whitepaper" class="page">
-  <h1>Whitepaper</h1>
-  <div id="whitepaper-content">Loading...</div>
-</div>
+  <div id="whitepaper" class="page">
+    <h1>Whitepaper</h1>
+    <div id="whitepaper-content">Loading...</div>
+  </div>
 
-<div id="insight" class="page">
-  <h1>Insight</h1>
-  <div id="insight-content">Loading...</div>
-</div>
+  <div id="insight" class="page">
+    <h1>Insight</h1>
+    <div id="insight-content">Loading...</div>
+  </div>
 
-<script>
-const BASE_URL = "http://localhost:1337";
+  <div id="services" class="page">
+    <h1>Services</h1>
+    <div id="services-content">Loading...</div>
+  </div>
 
-// --- Navigation ---
-function showPage(page) {
-  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
-  document.getElementById(page).classList.add("active");
-  document.querySelectorAll("nav a").forEach(a => a.classList.remove("active-link"));
-  document.getElementById("nav-" + page).classList.add("active-link");
-}
+  <script>
+    const BASE_URL = "http://localhost:1337";
 
-document.getElementById("nav-home").addEventListener("click", () => showPage("home"));
-document.getElementById("nav-who").addEventListener("click", () => showPage("who"));
-document.getElementById("nav-whitepaper").addEventListener("click", () => showPage("whitepaper"));
-document.getElementById("nav-insight").addEventListener("click", () => showPage("insight"));
-
-// --- Utility to create image ---
-function createImage(url, alt="") {
-  const img = document.createElement("img");
-  img.src = url;
-  img.alt = alt;
-  return img;
-}
-
-// --- Load Collection Type (Articles) ---
-async function loadCollection(endpoint, containerId, mediaField, textField) {
-  const container = document.getElementById(containerId);
-
-  try {
-    const res = await fetch(`${BASE_URL}/api/${endpoint}?populate=${mediaField}`);
-    const json = await res.json();
-
-    let items = [];
-
-    if (Array.isArray(json.data)) {
-      items = json.data;
-    } else if (json.data) {
-      items = [json.data];
+    // Create image element
+    function createImage(url, alt="") {
+      const img = document.createElement("img");
+      img.src = url;
+      img.alt = alt;
+      return img;
     }
 
-    container.innerHTML = "";
+    /* --------------------------
+       NAVIGATION
+    --------------------------- */
+    document.querySelectorAll("nav a").forEach(link => {
+      link.addEventListener("click", () => {
+        const page = link.dataset.page;
 
-    if (!items.length) {
-      container.innerHTML = "No content found";
-      return;
+        document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+        document.getElementById(page).classList.add("active");
+
+        document.querySelectorAll("nav a").forEach(a => a.classList.remove("active-link"));
+        link.classList.add("active-link");
+      });
+    });
+
+    /* --------------------------
+       LOAD COLLECTION (Articles)
+    --------------------------- */
+    async function loadCollection(endpoint, containerId) {
+      const container = document.getElementById(containerId);
+
+      try {
+        const res = await fetch(`${BASE_URL}/api/${endpoint}?populate=*`);
+        const json = await res.json();
+        const items = json.data || [];
+
+        container.innerHTML = "";
+
+        if(!items.length){
+          container.innerHTML = "No content found";
+          return;
+        }
+
+        items.forEach(item => {
+          const attrs = item.attributes || item;
+
+          const div = document.createElement("div");
+          div.className = "article";
+
+          div.innerHTML = `
+            <h2>${attrs.title || ""}</h2>
+            <p>${attrs.description || ""}</p>
+          `;
+
+          if(attrs.cover?.url){
+            div.appendChild(createImage(BASE_URL + attrs.cover.url, attrs.title));
+          }
+
+          container.appendChild(div);
+        });
+
+      } catch(err) {
+        console.error(err);
+        container.innerHTML = "Failed to load articles";
+      }
     }
 
-    items.forEach(item => {
-      const attrs = item;
+    /* --------------------------
+       LOAD SINGLE TYPE
+    --------------------------- */
+    async function loadSingle(endpoint, containerId, config = {}) {
+      const container = document.getElementById(containerId);
 
-      const div = document.createElement("div");
-      div.className = "item";
+      try {
+        const res = await fetch(`${BASE_URL}/api/${endpoint}?populate=*`);
+        const json = await res.json();
 
-      div.innerHTML = `
-        <h2>${attrs.title || attrs.LABs || "No title"}</h2>
-        <h2>${ attrs.ITService|| ""}</h2>
+        const data = json.data;
+        const attrs = data?.attributes || data;
 
-        <p>${attrs[textField] || ""}</p>
-      `;
+        container.innerHTML = "";
 
-      const imgData = attrs[mediaField];
+        if(!attrs){
+          container.innerHTML = "No content found";
+          return;
+        }
 
-      if (imgData?.url) {
-        div.appendChild(
-          createImage(BASE_URL + imgData.url, attrs.title || "")
-        );
+        const div = document.createElement("div");
+        div.className = "item";
+
+        // Text fields (safe default to empty array)
+        const textFields = Array.isArray(config.text) ? config.text : [];
+        textFields.forEach(field => {
+          if(attrs[field]){
+            const p = document.createElement("p");
+            p.textContent = attrs[field];
+            div.appendChild(p);
+          }
+        });
+
+        // Image fields (safe default to empty array)
+        const imageFields = Array.isArray(config.images) ? config.images : [];
+        imageFields.forEach(field => {
+          const imgData = attrs[field];
+          if(!imgData) return;
+
+          const imageUrl =
+            imgData?.formats?.small?.url ||
+            imgData?.formats?.thumbnail?.url ||
+            imgData?.url;
+
+          if(imageUrl){
+            div.appendChild(createImage(BASE_URL + imageUrl, field));
+          }
+        });
+
+        container.appendChild(div);
+
+      } catch(err) {
+        console.error(err);
+        container.innerHTML = "Failed to load content";
       }
-       container.appendChild(div);
-    });
-
-  } catch (err) {
-    console.error(err);
-    container.innerHTML = "Failed to load content";
-  }
-}
-// --- Load Single Type (who we are, whitework,Insight) ---
-// async function loadSingle(endpoint, containerId, mediaField, textField) {
-//   const container = document.getElementById(containerId);
-
-//   try {
-//     const res = await fetch(`${BASE_URL}/api/${endpoint}?populate=*`);
-//     const json = await res.json();
-
-//     const item = json.data;
-
-//     container.innerHTML = "";
-
-//     if (!item) {
-//       container.innerHTML = "No content found";
-//       return;
-//     }
-
-//     const attrs = item.attributes || item;
-
-//     const div = document.createElement("div");
-//     div.className = "item";
-
-//     div.innerHTML = `
-//       <h2>${attrs.LABs || attrs.whitework||attrs.Insight || ""}</h2>
-//       <h2>${attrs.ITService || ""}</h2>
-      
-//     `;
-// // <p>${attrs[textField] || ""}</p>
-//     const imgData = attrs[mediaField];
-
-//     if (imgData) {
-//       const imageUrl =
-//         imgData.formats?.small?.url ||
-//         imgData.formats?.thumbnail?.url ||
-//         imgData.url;
-
-//       if (imageUrl) {
-//         div.appendChild(createImage(BASE_URL + imageUrl, attrs.title || ""));
-//       }
-       
-      
-      
-//     }
-
-//     container.appendChild(div);
-
-//   } catch (err) {
-//     console.error(err);
-//     container.innerHTML = "Failed to load content";
-//   }
-// }
-async function loadSingle(endpoint, containerId, mediaFields = [], textFields = []) {
-  const container = document.getElementById(containerId);
-
-  try {
-    const res = await fetch(`${BASE_URL}/api/${endpoint}?populate=*`);
-    const json = await res.json();
-
-    const data = json.data;
-
-    container.innerHTML = "";
-
-    if (!data) {
-      container.innerHTML = "No content found";
-      return;
     }
 
-    const attrs = data;
+    /* --------------------------
+       INITIAL LOAD
+    --------------------------- */
 
-    const div = document.createElement("div");
-    div.className = "item";
+    // Articles
+    loadCollection("articles", "articles");
 
-    // Multiple text sections
-    textFields.forEach(field => {
-      if (attrs[field]) {
-        const section = document.createElement("div");
-        section.className = field;
-
-        section.innerHTML = `<p>${attrs[field]}</p>`;
-
-        div.appendChild(section);
-      }
+    // Who We Are
+    loadSingle("who-we-are","who-content",{
+      text:["LABs","ITService","eangadi"],
+      images:["Images","Image","Banner"]
     });
 
-    // Images
-    mediaFields.forEach(mediaField => {
-      const imgData = attrs[mediaField];
-      if (!imgData) return;
-
-      const imageUrl =
-        imgData.formats?.small?.url ||
-        imgData.formats?.thumbnail?.url ||
-        imgData.url;
-
-      if (imageUrl) {
-        const img = document.createElement("img");
-        img.src = BASE_URL + imageUrl;
-        img.alt = mediaField;
-
-        div.appendChild(img);
-      }
+    // Whitepaper
+    loadSingle("whitepaper","whitepaper-content",{
+      text:["whitework"],
+      images:["photo"]
     });
 
-    container.appendChild(div);
+    // Insight
+    loadSingle("insight","insight-content",{
+      text:["Insight"],
+      images:["uploads"]
+    });
 
-  } catch (err) {
-    console.error(err);
-    container.innerHTML = "Failed to load content";
-  }
-}
-// --- Initial Load ---
-loadCollection("articles", "articles", "cover", "description");
-loadSingle("who-we-are", "who-content", "Images","Banner", "description");
-loadSingle("whitepaper", "whitepaper-content", "photo", "whitework");
-loadSingle("insight", "insight-content", "uploads", "Insight");
+    // Services
+    loadSingle("services","services-content",{
+      text:["title","description"],
+      images:["image"]
+    });
 
-</script>
+  </script>
+
 </body>
 </html>
