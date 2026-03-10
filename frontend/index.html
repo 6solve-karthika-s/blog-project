@@ -68,7 +68,7 @@ function createImage(url, alt="") {
   return img;
 }
 
-// --- Load Collection Type (Articles & Who We Are) ---
+// --- Load Collection Type (Articles) ---
 async function loadCollection(endpoint, containerId, mediaField, textField) {
   const container = document.getElementById(containerId);
 
@@ -119,6 +119,7 @@ async function loadCollection(endpoint, containerId, mediaField, textField) {
     container.innerHTML = "Failed to load content";
   }
 }
+// --- Load Single Type (who we are, whitework,Insight) ---
 // async function loadSingle(endpoint, containerId, mediaField, textField) {
 //   const container = document.getElementById(containerId);
 
@@ -157,9 +158,7 @@ async function loadCollection(endpoint, containerId, mediaField, textField) {
 //       if (imageUrl) {
 //         div.appendChild(createImage(BASE_URL + imageUrl, attrs.title || ""));
 //       }
-//        {
-//         div.appendChild(createImage(BASE_URL + imageUrl, attrs.title ||attrs.Banner.url|| ""));
-//       }
+       
       
       
 //     }
@@ -171,7 +170,7 @@ async function loadCollection(endpoint, containerId, mediaField, textField) {
 //     container.innerHTML = "Failed to load content";
 //   }
 // }
-async function loadSingle(endpoint, containerId, mediaFields = [], textField) {
+async function loadSingle(endpoint, containerId, mediaFields = [], textFields = []) {
   const container = document.getElementById(containerId);
 
   try {
@@ -187,27 +186,39 @@ async function loadSingle(endpoint, containerId, mediaFields = [], textField) {
       return;
     }
 
-    const attrs = data.attributes || data;
+    const attrs = data;
 
     const div = document.createElement("div");
     div.className = "item";
 
-    // Text field
-    div.innerHTML = `<p>${attrs[textField] || ""}</p>`;
+    // Multiple text sections
+    textFields.forEach(field => {
+      if (attrs[field]) {
+        const section = document.createElement("div");
+        section.className = field;
 
-    // Loop through multiple media fields
+        section.innerHTML = `<p>${attrs[field]}</p>`;
+
+        div.appendChild(section);
+      }
+    });
+
+    // Images
     mediaFields.forEach(mediaField => {
       const imgData = attrs[mediaField];
       if (!imgData) return;
 
-      // Choose the best format
       const imageUrl =
         imgData.formats?.small?.url ||
         imgData.formats?.thumbnail?.url ||
         imgData.url;
 
       if (imageUrl) {
-        div.appendChild(createImage(BASE_URL + imageUrl, mediaField));
+        const img = document.createElement("img");
+        img.src = BASE_URL + imageUrl;
+        img.alt = mediaField;
+
+        div.appendChild(img);
       }
     });
 
